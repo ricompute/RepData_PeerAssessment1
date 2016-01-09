@@ -5,21 +5,121 @@ output:
     keep_md: true
 ---
 
+## Load required packages
+
+```{r}
+if (!require(readr)) {install.packages("readr")}
+if (!require(dplyr)) {install.packages("dplyr")}
+if (!require(ggplot2)) {install.packages("ggplot2")}
+sessionInfo()
+```
 
 ## Loading and preprocessing the data
 
+### Unzip the activity dataset
 
+```{r}
+unzip("activity.zip")
+```
+
+### Read data into R
+
+```{r}
+activity <- read_csv("activity.csv")
+```
 
 ## What is mean total number of steps taken per day?
 
+### Make a histogram of the total number of steps taken each day
+
+```{r}
+total_steps <- activity %>% group_by(date) %>% summarize(ts = sum(steps))
+
+ts_hist <- ggplot(total_steps, aes(ts)) + 
+             geom_histogram(bins = 25) +
+             xlab("Total Steps Per Day") + 
+             ggtitle("Histogram of Total Steps Per Day")
+ts_hist
+```
+
+
+### Calculate mean and median total steps per day
+
+```{r}
+mean(total_steps$ts, na.rm = TRUE)
+median(total_steps$ts, na.rm = TRUE)
+```
 
 
 ## What is the average daily activity pattern?
 
+```{r}
+steps_by_interval <- activity %>% group_by(interval) %>% 
+                             summarize(ms = mean(steps, na.rm = TRUE))
+
+activity_pattern <- ggplot(steps_by_interval, aes(interval, ms)) + 
+                      geom_line() +
+                      xlab("5 Minute Interval") + ylab("Mean Steps") +
+                      ggtitle("Mean Steps for Each Interval Across All Days")
+activity_pattern
+```
+
+The 5-minute interval which, on average across all days of the dataset, contains
+the maximum number of steps is:
+
+```{r}
+steps_by_interval$interval[which.max(steps_by_interval$ms)]
+```
 
 
 ## Imputing missing values
 
+The total number of rows with missing values in this dataset is:
+
+```{r}
+sum(is.na(activity))
+```
+
+
+### Fill in missing values
+
+A new dataset `activity_filled` is created by filling in NA values with the mean 
+for that 5-minute interval across all days.
+
+```{r}
+activity_filled <- activity
+for (loc in which(is.na(activity_filled))) {
+        activity_filled$steps[loc] <- steps_by_interval %>% 
+                                      filter(interval == activity_filled$interval[loc]) %>% 
+                                      select(ms) %>% unlist()
+}
+```
+
+
+### Histogram of total steps per day with filled values
+
+```{r}
+total_steps_f <- activity_filled %>% group_by(date) %>% summarize(ts = sum(steps))
+
+ts_hist_f <- ggplot(total_steps_f, aes(ts)) + 
+               geom_histogram(bins = 25) +
+               xlab("Total Steps Per Day") + 
+               ggtitle("Histogram of Total Steps Per Day")
+ts_hist_f
+```
+
+
+### Mean and median total steps per day with filled values
+
+```{r}
+mean(total_steps_f$ts, na.rm = TRUE)
+median(total_steps_f$ts, na.rm = TRUE)
+```
+
+Interestingly, the mean for the dataset with the filled in missing values is the
+same as the mean without the filled values, and the median of the data with the
+filled values is identical to the mean, which is only slightly greater than the
+median without the filled values.
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
